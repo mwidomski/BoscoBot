@@ -60,11 +60,20 @@ async def teamkills(ctx, member: discord.Member, command: str):
 #TODO: Get mike troll pic from Michael
 #TODO: Maybe just paste the image, don't use Embed
 ### When called, paste a picture of mike troll in the calling channel
-@bot.command()
-async def mike(ctx):
-  _embed = discord.Embed()
-  #_embed.set("url to image")
-  ctx.channel.send(embed=_embed)
+#@bot.command()
+#async def mike(ctx):
+#  _embed = discord.Embed()
+#  #_embed.set("url to image")
+#  ctx.channel.send(embed=_embed)
+
+
+#PM opted in users whenever another user is playing a game
+#TODO: Need to store list of opt ins per user. Txt file, db instance?
+@client.event()
+async def on_member_update():
+  
+  
+  
   
 ####################RUNNER####################
 f = open('token.txt','r')
