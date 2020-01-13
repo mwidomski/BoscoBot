@@ -3,6 +3,7 @@ import re
 import asteval
 import discord
 from discord.ext import commands
+from discord.ext.commands import cooldown
 
 m_tkrole = re.compile("[-+*/=]([0-9]+$)")
 aeval = asteval.Interpreter()
@@ -88,34 +89,53 @@ async def teamkills(ctx, member: discord.Member, command: str):
 
 #PM opted in users whenever another user is playing a game
 #TODO: Replace txt file with mongo or something. Periodic automatic checks.
-#@client.event()
-#async def on_member_update():
-#  return
+##BROKEN: Not being called on game launch for some reason
+@client.event
+async def on_member_update(before, after):
+  print("on_member_update called on " + after.name)
+  if type(after.activities[0]) == discord.Game:
+    print("found Game activity")
+    #Get list of members subscribed to person playing game
+    f = open("Resources/nowplaying.txt", "r")
+    file = f.readlines
+    f.close()
+    for line in file:
+      line = line.split(":")
+      if line[0] == after.id():
+        print("Found registered user")
+        ids = line[1].split(",")
+        for uid in ids:
+          print("Sending message to registered users...")
+          m_toSend = discord.get_member(int(uid))
+          await after.send(m_toSend.name + " is now playing " + after.activities[0].name)
   
   
 @bot.command()
+@cooldown(1,1000)
 ##TODO: specify multiple members per command
-##TODO: Potential for race condition here with simultaenous read/writes from different command calls
 async def npregister(ctx, member: discord.Member = None):
   found = False
-  print("Starting command npregister...")
+  print("Starting command npregister on " + member.name + " ...")
   m = "Added " + member.name + " to PM alerts"
   f = open("Resources/nowplaying.txt", "r+")
   print("Opened file nowplaying...")
   lines = f.readlines()
   f.seek(0) #rewrite the file
   for line in lines:
-    if line.split(":")[0] == ctx.message.author.name:
+    if line.split(":")[0] == str(ctx.message.author.id):
       found = True
-      if not member.name in line.split(":")[1]:
-        line = line.strip("\n") + "," + member.name + "\n"
+      if not member.id in line.split(":")[1]:
+        line = line.strip("\n") + "," + str(member.id) + "\n"
     f.write(line)
   if found == False:
-    f.write(ctx.message.author.name + ":" + member.name + "\n")
+    f.write(str(ctx.message.author.id) + ":" + str(member.id) + "\n")
   f.close()
   __updateNowPlaying()
   await ctx.message.author.send(m)
+  
   await ctx.message.delete()
+  
+  npregister.reset_cooldown(ctx)
   
   
 
