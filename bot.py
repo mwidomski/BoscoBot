@@ -1,6 +1,7 @@
 import logging
 import re
 import asteval
+import traceback
 import discord
 from discord.ext import commands
 from discord.ext.commands import cooldown
@@ -15,27 +16,43 @@ PREFIX = '.bosco '
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
 
-#TODO: Get Michael to create custom channel for logging bot output
-#TODO: Custom error message for invalid commands
+AUDIT_LOG = 716406877361274942
 
-###private call to populate nowplaying array
-###FORMAT: <Discord User to PM>:<Comma separated list of discord Users to pm for on status change>
-def __updateNowPlaying():
-  nplist = []
-  f = open("Resources/nowplaying.txt","r")
-  lst1 = []
-  for line in f:
-    lst0 = line.split(":")
-    lst1.append(lst0[0])
-    for elem in lst0[1].split(","):
-      lst1.append(elem)
-  nplist.append(lst1)
-  print(*nplist, sep=', ')
-  f.close()
-  
-### Get nowplaying registrations
-nplist = []
-__updateNowPlaying()
+@bot.event
+async def on_ready():
+    print("Rock and Stone Miners! (Bosco is ready)")
+
+@bot.event
+async def on_raw_message_delete(rawevent):
+    print("on_raw_message_delete was called")
+    payload_channel = bot.get_channel(rawevent.channel_id)
+    if payload_channel == None:
+        print("Could not find audit log channel")
+        return None
+    audit_channel = bot.get_channel(AUDIT_LOG)
+    if audit_channel == None:
+        print("Could not find audit log channel")
+        return None
+    else:
+        if rawevent.cached_message == None:
+            print("Message <"+str(rawevent.message_id)+"> in channel <"+str(rawevent.channel_id)+"> not cached. Attempting to retrieve...")
+            try:
+                ret_message = await payload_channel.fetch_message(rawevent.message_id)
+                await audit_channel.send("Deleted message by *" + ret_message.author.name +"* at " + ret_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + ret_message.content)
+            except Exception as e:
+                print(traceback.format_exc())
+                await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel <" + str(rawevent.channel_id) + ">.")
+            
+        else:
+            await audit_channel.send("Deleted message by *" + rawevent.cached_message.author.name +"* at " +rawevent.cached_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + rawevent.cached_message.content)
+
+@bot.event
+async def on_message_edit(before,after):
+    audit_channel = bot.get_channel(AUDIT_LOG)
+    if after.content[0:4] == 'http':
+        return None
+    else:
+        await audit_channel.send("Message edited by *" + after.author.name + "* in __#" + after.channel.name + "__ :\n **BEFORE** : " + before.content + "\n** AFTER** : " + after.content)  
 
 ### Set a new number of team kills for members with the team kill role
 ### REQUIRES: manage_roles, manage_messages
@@ -76,71 +93,10 @@ async def teamkills(ctx, member: discord.Member, command: str):
     
   #Remove bot command from the channel.
   await ctx.message.delete()
-
-#TODO: Get mike troll pic from Michael
-#TODO: Maybe just paste the image, don't use Embed
-### When called, paste a picture of mike troll in the calling channel
-#@bot.command()
-#async def mike(ctx):
-#  __embed = discord.Embed()
-#  #__embed.set("url to image")
-#  ctx.channel.send(embed=_embed)
-
-
-#PM opted in users whenever another user is playing a game
-#TODO: Replace txt file with mongo or something. Periodic automatic checks.
-##BROKEN: Not being called on game launch for some reason
-@client.event
-async def on_member_update(before, after):
-  print("on_member_update called on " + after.name)
-  if type(after.activities[0]) == discord.Game:
-    print("found Game activity")
-    #Get list of members subscribed to person playing game
-    f = open("Resources/nowplaying.txt", "r")
-    file = f.readlines
-    f.close()
-    for line in file:
-      line = line.split(":")
-      if line[0] == after.id():
-        print("Found registered user")
-        ids = line[1].split(",")
-        for uid in ids:
-          print("Sending message to registered users...")
-          m_toSend = discord.get_member(int(uid))
-          await after.send(m_toSend.name + " is now playing " + after.activities[0].name)
-  
-  
-@bot.command()
-@cooldown(1,1000)
-##TODO: specify multiple members per command
-async def npregister(ctx, member: discord.Member = None):
-  found = False
-  print("Starting command npregister on " + member.name + " ...")
-  m = "Added " + member.name + " to PM alerts"
-  f = open("Resources/nowplaying.txt", "r+")
-  print("Opened file nowplaying...")
-  lines = f.readlines()
-  f.seek(0) #rewrite the file
-  for line in lines:
-    if line.split(":")[0] == str(ctx.message.author.id):
-      found = True
-      if not member.id in line.split(":")[1]:
-        line = line.strip("\n") + "," + str(member.id) + "\n"
-    f.write(line)
-  if found == False:
-    f.write(str(ctx.message.author.id) + ":" + str(member.id) + "\n")
-  f.close()
-  __updateNowPlaying()
-  await ctx.message.author.send(m)
-  
-  await ctx.message.delete()
-  
-  npregister.reset_cooldown(ctx)
-  
   
 
 @teamkills.error
-@npregister.error
+#@npregister.error
 async def member_error(ctx, error):
     print(error)
     if isinstance(error, discord.ext.commands.BadArgument):
