@@ -9,7 +9,12 @@ from discord.ext.commands import cooldown
 m_tkrole = re.compile("[-+*/=]([0-9]+$)")
 aeval = asteval.Interpreter()
 
-logging.basicConfig(level=logging.INFO)
+
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='/home/pi/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
 
 PREFIX = '.bosco '
 
@@ -118,7 +123,7 @@ async def member_error(ctx, error):
         await ctx.message.author.send(error)
   
 ####################RUNNER####################
-f = open('token.txt','r')
+f = open('/home/pi/BoscoBot/token.txt','r')
 token = f.read()
 f.close()
 bot.run(token)
