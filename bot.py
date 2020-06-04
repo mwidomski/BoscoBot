@@ -16,20 +16,32 @@ PREFIX = '.bosco '
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
 
-AUDIT_LOG = 716406877361274942
-
 @bot.event
 async def on_ready():
     print("Rock and Stone Miners! (Bosco is ready)")
+
+
+async def lookup_channel_server(guild,channel_name):
+    print('calling lookup function for ' + channel_name + ' in ' + guild.name)
+    channel = discord.utils.get(guild.text_channels, name = channel_name)
+    if channel == None:
+        print('Error retrieving channel')
+        print(guild.text_channels)
+        return None
+    print('found __#' + channel.name + '__ in **' + channel.guild.name + '**')
+    return channel
+    
+    
 
 @bot.event
 async def on_raw_message_delete(rawevent):
     print("on_raw_message_delete was called")
     payload_channel = bot.get_channel(rawevent.channel_id)
-    if payload_channel == None:
-        print("Could not find audit log channel")
+    if payload_channel.name == 'bosco-audit-log':
+        print("deletion in #bosco-audit-log , skipping...")
         return None
-    audit_channel = bot.get_channel(AUDIT_LOG)
+    print(payload_channel.guild)
+    audit_channel = await lookup_channel_server(payload_channel.guild,'bosco-audit-log')
     if audit_channel == None:
         print("Could not find audit log channel")
         return None
@@ -41,14 +53,17 @@ async def on_raw_message_delete(rawevent):
                 await audit_channel.send("Deleted message by *" + ret_message.author.name +"* at " + ret_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + ret_message.content)
             except Exception as e:
                 print(traceback.format_exc())
-                await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel <" + str(rawevent.channel_id) + ">.")
+                await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel __#" + bot.get_channel(rawevent.channel_id).name + "__.")
             
         else:
             await audit_channel.send("Deleted message by *" + rawevent.cached_message.author.name +"* at " +rawevent.cached_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + rawevent.cached_message.content)
 
 @bot.event
 async def on_message_edit(before,after):
-    audit_channel = bot.get_channel(AUDIT_LOG)
+    if before.channel.name == 'bosco-audit-log':
+        print("edit in #bosco-audit-log , skipping...")
+        return None
+    audit_channel = await lookup_channel_server(before.guild,'bosco-audit-log')
     if after.content[0:4] == 'http':
         return None
     else:
