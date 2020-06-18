@@ -6,7 +6,12 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import cooldown
 
+PREFIX = '.bosco '
+RYTHM = '!'
+
 m_tkrole = re.compile("[-+*/=]([0-9]+$)")
+m_rythmprefix = re.compile(RYTHM+"[\w]")
+
 aeval = asteval.Interpreter()
 
 
@@ -15,9 +20,6 @@ logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='/home/pi/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
-
-PREFIX = '.bosco '
-RYTHM = '!'
 
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
@@ -42,6 +44,18 @@ async def lookup_channel_server(guild,channel_name):
     
 
 @bot.event
+async def on_message(message):
+    #Ignore Rythm prefix everywhere except in dedicated channel
+    if m_rythmprefix.match(message.content):
+        if message.channel.name != 'music-bot-commands':
+            music_commands = await lookup_channel_server(message.guild, 'music-bot-commands')
+            if music_commands is not None:
+                await message.delete()
+                await message.author.send("Use Rythm commands (!<command>) only in <#" + str(music_commands.id)+ ">")
+            else:
+                print("Error! Could not find channel #music-bot-commands")
+
+@bot.event
 async def on_raw_message_delete(rawevent):
     print("on_raw_message_delete was called")
     payload_channel = bot.get_channel(rawevent.channel_id)
@@ -64,9 +78,11 @@ async def on_raw_message_delete(rawevent):
                 await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel __#" + bot.get_channel(rawevent.channel_id).name + "__.")
             
         else:
-            #TODO: Use bot.prefix()
-            if rawevent.cached_message.content[0:6] == '.bosco':
+            if rawevent.cached_message.content[0:6] == PREFIX:
                 print("deleted message is a bot command, skipping...")
+                return None
+            elif rawevent.cached_message.content[0] == RYTHM:
+                print("deleted message is a Rythm command, skipping...")
                 return None
             else:
                 await audit_channel.send("Deleted message by *" + rawevent.cached_message.author.name +"* at " +rawevent.cached_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + rawevent.cached_message.content)
