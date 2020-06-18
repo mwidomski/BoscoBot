@@ -17,6 +17,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 PREFIX = '.bosco '
+RYTHM = '!'
 
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
@@ -32,7 +33,7 @@ async def lookup_channel_server(guild,channel_name):
     print('calling lookup function for ' + channel_name + ' in ' + guild.name)
     channel = discord.utils.get(guild.text_channels, name = channel_name)
     if channel == None:
-        print('Error retrieving channel')
+        print('Error retrieving channel #' + channel_name + '\n')
         print(guild.text_channels)
         return None
     print('found __#' + channel.name + '__ in **' + channel.guild.name + '**')
@@ -76,8 +77,11 @@ async def on_message_edit(before,after):
     if before.channel.name == 'bosco-audit-log':
         print("edit in #bosco-audit-log , skipping...")
         return None
-    audit_channel = await lookup_channel_server(before.guild,'bosco-audit-log')
-    if after.content[0:4] == 'http':
+    elif before.channel.name == 'music-bot-commands':
+        if before.author.name == 'Rythm':
+            print("message from Rythm bot after command, skipping...")
+            return None
+    elif 'http' in after.content:
         print("message is a link, skipping...")
         return None
     #TODO: use bot.prefix()
@@ -88,7 +92,14 @@ async def on_message_edit(before,after):
         print("message is pinned, skipping...")
         return None
     else:
-        await audit_channel.send("Message edited by *" + after.author.name + "* in __#" + after.channel.name + "__ :\n **BEFORE** : " + before.content + "\n** AFTER** : " + after.content)  
+        audit_channel = await lookup_channel_server(before.guild,'bosco-audit-log')
+        if audit_channel is None:
+            print("Failed to lookup __#bosco-audit-log__ channel")
+            return None
+        else:
+            await audit_channel.send("Message edited by *" + after.author.name + "* in __#" + after.channel.name + "__ :\n **BEFORE** : " + before.content + "\n** AFTER** : " + after.content)
+                    
+            
 
 ### Set a new number of team kills for members with the team kill role
 ### REQUIRES: manage_roles, manage_messages
@@ -140,6 +151,16 @@ async def pin(ctx, message: str):
     await message.pin()
     print("pinned '"+ message.content + "' to #" + ctx.channel.name)
     await ctx.message.delete()
+    
+
+@bot.command()
+async def join_voice(ctx):
+    channel = ctx.author.voice.channel
+    await channel.connect()
+
+@bot.command()
+async def leave_voice(ctx):
+    await ctx.voice_client.disconnect()
 
 @teamkills.error
 #@npregister.error
