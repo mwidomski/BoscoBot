@@ -15,9 +15,12 @@ m_rythmprefix = re.compile(RYTHM+"[\w]")
 aeval = asteval.Interpreter()
 
 
+channel_hold_list = dict()
+
+
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='/home/pi/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='logs/boscodev.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
@@ -31,29 +34,45 @@ async def on_ready():
     print("Rock and Stone Miners! (Bosco is ready)")
 
 
-async def lookup_channel_server(guild,channel_name):
-    print('calling lookup function for ' + channel_name + ' in ' + guild.name)
+async def lookup_tchannel_server(guild,channel_name):
+    print('calling text lookup function for ' + channel_name + ' in ' + guild.name)
     channel = discord.utils.get(guild.text_channels, name = channel_name)
     if channel == None:
         print('Error retrieving channel #' + channel_name + '\n')
         print(guild.text_channels)
         return None
-    print('found __#' + channel.name + '__ in **' + channel.guild.name + '**')
+    print('found #' + channel.name + ' in ' + channel.guild.name)
+    return channel
+    
+async def lookup_vchannel_server(guild, channel_name):
+    print('calling voice lookup function for ' + channel_name + ' in ' + guild.name)
+    channel = discord.utils.get(guild.voice_channels, name = channel_name)
+    if channel == None:
+        print('Error retrieving channel Voice_' + channel_name + '\n')
+        print(guild.text_channels)
+        return None
+    print('found Voice_' + channel.name + ' in ' + channel.guild.name)
     return channel
     
     
 
 @bot.event
 async def on_message(message):
+    print("on_message called with: " + message.content)
     #Ignore Rythm prefix everywhere except in dedicated channel
     if m_rythmprefix.match(message.content):
         if message.channel.name != 'music-bot-commands':
-            music_commands = await lookup_channel_server(message.guild, 'music-bot-commands')
+            music_commands = await lookup_tchannel_server(message.guild, 'music-bot-commands')
             if music_commands is not None:
                 await message.delete()
                 await message.author.send("Use Rythm commands (!<command>) only in <#" + str(music_commands.id)+ ">")
             else:
                 print("Error! Could not find channel #music-bot-commands")
+    
+    #Other cases go here
+    
+    #####Have to make sure the command is processed if the message was a command#####
+    await bot.process_commands(message)
 
 @bot.event
 async def on_raw_message_delete(rawevent):
@@ -63,7 +82,7 @@ async def on_raw_message_delete(rawevent):
         print("deletion in #bosco-audit-log , skipping...")
         return None
     print(payload_channel.guild)
-    audit_channel = await lookup_channel_server(payload_channel.guild,'bosco-audit-log')
+    audit_channel = await lookup_tchannel_server(payload_channel.guild,'bosco-audit-log')
     if audit_channel == None:
         print("Could not find audit log channel")
         return None
@@ -108,13 +127,30 @@ async def on_message_edit(before,after):
         print("message is pinned, skipping...")
         return None
     else:
-        audit_channel = await lookup_channel_server(before.guild,'bosco-audit-log')
+        audit_channel = await lookup_tchannel_server(before.guild,'bosco-audit-log')
         if audit_channel is None:
-            print("Failed to lookup __#bosco-audit-log__ channel")
+            print("Failed to lookup #bosco-audit-log channel")
             return None
         else:
             await audit_channel.send("Message edited by *" + after.author.name + "* in __#" + after.channel.name + "__ :\n **BEFORE** : " + before.content + "\n** AFTER** : " + after.content)
                     
+
+@bot.event
+async def on_voice_state_update(member,before,after):
+    #Keep member in channel if was moved
+    if member.id in channel_hold_list:
+        voice_channel = channel_hold_list[member.id]
+        if before.channel == voice_channel:
+            if after.channel is None:
+                print("Member left voice, removing channel hold")
+                channel_hold_list.pop(member.id)
+                await member.send("Removed hold on __" + str(voice_channel) + "__")
+            elif before.channel != after.channel:
+                await member.move_to(voice_channel, reason="Bosco set channel hold")   
+            else:
+                return None
+    else:
+        return None
             
 
 ### Set a new number of team kills for members with the team kill role
@@ -170,13 +206,41 @@ async def pin(ctx, message: str):
     
 
 @bot.command()
-async def join_voice(ctx):
+async def joinvoice(ctx):
     channel = ctx.author.voice.channel
     await channel.connect()
 
 @bot.command()
-async def leave_voice(ctx):
+async def leavevoice(ctx):
     await ctx.voice_client.disconnect()
+    
+@bot.command()
+async def keepvoice(ctx):
+    user = ctx.message.author
+    voice_channel = ctx.message.author.voice.channel
+    if voice_channel is None:
+        await ctx.message.author.send("You are not in a voice channel!")
+    else:
+        channel_hold_list[user.id] = voice_channel
+        await ctx.message.author.send("Will keep you in __" + str(voice_channel) + "__ until you leave voice")
+        
+@bot.command()
+async def movevoice(ctx, move_from, move_to):
+    print("movevoice called")
+    voice_channel_to = await lookup_vchannel_server(ctx.message.guild, move_to)
+    voice_channel_from = await lookup_vchannel_server(ctx.message.guild, move_from)
+    if voice_channel_to and voice_channel_from: 
+        print("Attempting to move...")
+        for user in voice_channel_from.members:
+            await user.move_to(voice_channel_to,reason="Mass channel move by " + ctx.message.author.name)
+    
+    else:
+        message = "The following channels could not be found: "
+        if voice_channel_to is None:
+            message += "__" + move_to + "__ "
+        if voice_channel_from is None:
+            message += "__" + move_from + "__ "
+        await ctx.message.author.send(message)
 
 @teamkills.error
 #@npregister.error
@@ -186,7 +250,7 @@ async def member_error(ctx, error):
         await ctx.message.author.send(error)
   
 ####################RUNNER####################
-f = open('/home/pi/BoscoBot/token.txt','r')
+f = open('devtoken.txt','r')
 token = f.read()
 f.close()
 bot.run(token)
