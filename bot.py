@@ -209,10 +209,12 @@ async def pin(ctx, message: str):
 async def joinvoice(ctx):
     channel = ctx.author.voice.channel
     await channel.connect()
+    await ctx.message.delete()
 
 @bot.command()
 async def leavevoice(ctx):
     await ctx.voice_client.disconnect()
+    await ctx.message.delete()
     
 @bot.command()
 async def keepvoice(ctx):
@@ -223,6 +225,7 @@ async def keepvoice(ctx):
     else:
         channel_hold_list[user.id] = voice_channel
         await ctx.message.author.send("Will keep you in __" + str(voice_channel) + "__ until you leave voice")
+    await ctx.message.delete()
         
 @bot.command()
 async def movevoice(ctx, move_from, move_to):
@@ -241,6 +244,7 @@ async def movevoice(ctx, move_from, move_to):
         if voice_channel_from is None:
             message += "__" + move_from + "__ "
         await ctx.message.author.send(message)
+    await ctx.message.delete()
 
 @teamkills.error
 #@npregister.error
