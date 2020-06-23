@@ -20,7 +20,7 @@ channel_hold_list = dict()
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='logs/boscodev.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='/home/pi/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
@@ -250,7 +250,7 @@ async def member_error(ctx, error):
         await ctx.message.author.send(error)
   
 ####################RUNNER####################
-f = open('devtoken.txt','r')
+f = open('/home/pi/BoscoBot/token.txt','r')
 token = f.read()
 f.close()
 bot.run(token)
