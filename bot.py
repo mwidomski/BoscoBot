@@ -97,7 +97,7 @@ async def on_raw_message_delete(rawevent):
                 await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel __#" + bot.get_channel(rawevent.channel_id).name + "__.")
             
         else:
-            if rawevent.cached_message.content[0:6] == PREFIX:
+            if rawevent.cached_message.content[0:7] == PREFIX:
                 print("deleted message is a bot command, skipping...")
                 return None
             elif rawevent.cached_message.content[0] == RYTHM:
@@ -120,7 +120,7 @@ async def on_message_edit(before,after):
         print("message is a link, skipping...")
         return None
     #TODO: use bot.prefix()
-    elif after.content[0:6] == '.bosco':
+    elif after.content[0:7] == PREFIX:
         print("message is a prefix, skipping...")
         return None
     elif after.pinned:
