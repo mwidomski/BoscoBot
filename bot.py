@@ -27,7 +27,8 @@ logger.addHandler(handler)
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
 
-#TODO: Help command
+#TODO: Expand help command
+#TODO: Deletion record for images isn't working
 
 @bot.event
 async def on_ready():
