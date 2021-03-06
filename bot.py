@@ -28,7 +28,9 @@ client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
 
 #TODO: Keep Bosco in voice channel if someone in there. On join/leave, play notification sound UNLESS a user who is blacklisted joins
-#TODO: Some kind of persistant storage for blacklists etc.
+###### Some kind of persistant storage for blacklists etc.
+###### Just have the above key on roles for now
+
 #TODO: Expand help command
 #TODO: Deletion record for images isn't working
 
