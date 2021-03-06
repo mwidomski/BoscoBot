@@ -27,6 +27,8 @@ logger.addHandler(handler)
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
 
+#TODO: Keep Bosco in voice channel if someone in there. On join/leave, play notification sound UNLESS a user who is blacklisted joins
+#TODO: Some kind of persistant storage for blacklists etc.
 #TODO: Expand help command
 #TODO: Deletion record for images isn't working
 
@@ -69,6 +71,10 @@ async def on_message(message):
                 await message.author.send("Use Rythm commands (!<command>) only in <#" + str(music_commands.id)+ ">")
             else:
                 print("Error! Could not find channel #music-bot-commands")
+    if message.attachments:
+        #this may be to broad
+        #If message author on ignore list (in memory doesn't survive shutdown, but maybe good enough for now)
+            #Delete message or do not allow post
     
     #Other cases go here
     
@@ -205,6 +211,8 @@ async def pin(ctx, message: str):
     print("pinned '"+ message.content + "' to #" + ctx.channel.name)
     await ctx.message.delete()
     
+
+#TODO: Command for adding/removing from ignore list
 
 @bot.command()
 async def joinvoice(ctx):
