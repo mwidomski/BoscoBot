@@ -216,6 +216,7 @@ async def pin(ctx, message: str):
 async def onemore(ctx):
     channel = ctx.channel
     await channel.send("ONE MORE FOR CHRISTMAS!!")
+    await ctx.message.delete()
 
 @bot.command()
 async def joinvoice(ctx):
