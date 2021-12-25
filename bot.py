@@ -9,6 +9,8 @@ from discord.ext.commands import cooldown
 PREFIX = '.bosco '
 RYTHM = '!'
 
+avatar_path = '/root/BoscoBot/Resources/BoscoChristmas.png'
+
 m_tkrole = re.compile("[-+*/=]([0-9]+$)")
 m_rythmprefix = re.compile(RYTHM+"[\w]")
 
@@ -20,22 +22,22 @@ channel_hold_list = dict()
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='/home/pi/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='/root/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
 client = discord.Client()
 bot = commands.Bot(command_prefix=PREFIX)
 
-#TODO: Keep Bosco in voice channel if someone in there. On join/leave, play notification sound UNLESS a user who is blacklisted joins
-###### Some kind of persistant storage for blacklists etc.
-###### Just have the above key on roles for now
-
 #TODO: Expand help command
 #TODO: Deletion record for images isn't working
 
 @bot.event
 async def on_ready():
+    av_path = open(avatar_path,'rb')
+    avatar_raw = av_path.read()
+    await bot.user.edit(avatar=avatar_raw)
+    av_path.close()
     print("Rock and Stone Miners! (Bosco is ready)")
 
 
@@ -73,10 +75,6 @@ async def on_message(message):
                 await message.author.send("Use Rythm commands (!<command>) only in <#" + str(music_commands.id)+ ">")
             else:
                 print("Error! Could not find channel #music-bot-commands")
-    if message.attachments:
-        #this may be to broad
-        #If message author on ignore list (in memory doesn't survive shutdown, but maybe good enough for now)
-            #Delete message or do not allow post
     
     #Other cases go here
     
@@ -214,7 +212,10 @@ async def pin(ctx, message: str):
     await ctx.message.delete()
     
 
-#TODO: Command for adding/removing from ignore list
+@bot.command()
+async def onemore(ctx):
+    channel = ctx.channel
+    await channel.send("ONE MORE FOR CHRISTMAS!!")
 
 @bot.command()
 async def joinvoice(ctx):
@@ -265,7 +266,7 @@ async def member_error(ctx, error):
         await ctx.message.author.send(error)
   
 ####################RUNNER####################
-f = open('/home/pi/BoscoBot/token.txt','r')
+f = open('/root/BoscoBot/token.txt','r')
 token = f.read()
 f.close()
 bot.run(token)
