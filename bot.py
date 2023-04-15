@@ -9,7 +9,7 @@ from discord.ext.commands import cooldown
 PREFIX = '.bosco '
 RYTHM = '!'
 
-avatar_path = '/root/BoscoBot/Resources/BoscoChristmas.png'
+avatar_path = './BoscoBot/Resources/BoscoChristmas.png'
 
 m_tkrole = re.compile("[-+*/=]([0-9]+$)")
 m_rythmprefix = re.compile(RYTHM+"[\w]")
@@ -22,13 +22,15 @@ channel_hold_list = dict()
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='/root/BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='./BoscoBot/logs/bosco.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-client = discord.Client()
-bot = commands.Bot(command_prefix=PREFIX)
+intents = discord.Intents.default()
+client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix=PREFIX,intents=intents)
 
+#TODO: MAJOR - Rewrite all commands
 #TODO: Expand help command
 #TODO: Deletion record for images isn't working
 
@@ -267,7 +269,7 @@ async def member_error(ctx, error):
         await ctx.message.author.send(error)
   
 ####################RUNNER####################
-f = open('/root/BoscoBot/token.txt','r')
+f = open('./BoscoBot/token.txt','r')
 token = f.read()
 f.close()
 bot.run(token)
