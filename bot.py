@@ -3,11 +3,13 @@ import re
 import asteval
 import traceback
 import discord
-from discord.ext import commands
 from discord.ext.commands import cooldown
+from discord import app_commands
 
 PREFIX = '.bosco '
 RYTHM = '!'
+APPLICATION_ID=654952160995311616
+GUILD_ID=480796085372190733
 
 avatar_path = './BoscoBot/Resources/BoscoChristmas.png'
 
@@ -27,19 +29,22 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 intents = discord.Intents.default()
-client = discord.Client(intents=intents)
-bot = commands.Bot(command_prefix=PREFIX,intents=intents)
+intents.message_content=True
+client = discord.Client(intents=intents,application_id=APPLICATION_ID)
+tree = app_commands.CommandTree(client)
 
 #TODO: MAJOR - Rewrite all commands
 #TODO: Expand help command
 #TODO: Deletion record for images isn't working
 
-@bot.event
+@client.event
 async def on_ready():
     av_path = open(avatar_path,'rb')
     avatar_raw = av_path.read()
-    await bot.user.edit(avatar=avatar_raw)
+    await client.user.edit(avatar=avatar_raw)
     av_path.close()
+    print("Synced commands:")
+    print(await tree.sync(guild=discord.Object(id=GUILD_ID)))
     print("Rock and Stone Miners! (Bosco is ready)")
 
 
@@ -65,28 +70,28 @@ async def lookup_vchannel_server(guild, channel_name):
     
     
 
-@bot.event
-async def on_message(message):
-    print("on_message called with: " + message.content)
+#@client.event
+#async def on_message(message):
+    #print("on_message called with: " + message.content)
     #Ignore Rythm prefix everywhere except in dedicated channel
-    if m_rythmprefix.match(message.content):
-        if message.channel.name != 'music-bot-commands':
-            music_commands = await lookup_tchannel_server(message.guild, 'music-bot-commands')
-            if music_commands is not None:
-                await message.delete()
-                await message.author.send("Use Rythm commands (!<command>) only in <#" + str(music_commands.id)+ ">")
-            else:
-                print("Error! Could not find channel #music-bot-commands")
+    #if m_rythmprefix.match(message.content):
+    #    if message.channel.name != 'music-bot-commands':
+    #        music_commands = await lookup_tchannel_server(message.guild, 'music-bot-commands')
+    #        if music_commands is not None:
+    #            await message.delete()
+    #            await message.author.send("Use Rythm commands (!<command>) only in <#" + str(music_commands.id)+ ">")
+    #        else:
+    #            print("Error! Could not find channel #music-bot-commands")
     
     #Other cases go here
     
     #####Have to make sure the command is processed if the message was a command#####
-    await bot.process_commands(message)
+    #await client.process_commands(message)
 
-@bot.event
+@client.event
 async def on_raw_message_delete(rawevent):
     print("on_raw_message_delete was called")
-    payload_channel = bot.get_channel(rawevent.channel_id)
+    payload_channel = client.get_channel(rawevent.channel_id)
     if payload_channel.name == 'bosco-audit-log':
         print("deletion in #bosco-audit-log , skipping...")
         return None
@@ -103,19 +108,20 @@ async def on_raw_message_delete(rawevent):
                 await audit_channel.send("Deleted message by *" + ret_message.author.name +"* at " + ret_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + ret_message.content)
             except Exception as e:
                 print(traceback.format_exc())
-                await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel __#" + bot.get_channel(rawevent.channel_id).name + "__.")
+                await audit_channel.send("An exception occured while trying to retrieve message <" + str(rawevent.message_id) + "> from channel __#" + client.get_channel(rawevent.channel_id).name + "__.")
             
         else:
-            if rawevent.cached_message.content[0:7] == PREFIX:
-                print("deleted message is a bot command, skipping...")
-                return None
-            elif rawevent.cached_message.content[0] == RYTHM:
-                print("deleted message is a Rythm command, skipping...")
-                return None
-            else:
-                await audit_channel.send("Deleted message by *" + rawevent.cached_message.author.name +"* at " +rawevent.cached_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + rawevent.cached_message.content)
+            #if rawevent.cached_message.content[0:7] == PREFIX:
+            #    print("deleted message is a bot command, skipping...")
+            #    return None
+            #elif rawevent.cached_message.content[0] == RYTHM:
+            #    print("deleted message is a Rythm command, skipping...")
+            #    return None
+            #else:
 
-@bot.event
+            await audit_channel.send("Deleted message by *" + rawevent.cached_message.author.name +"* at " +rawevent.cached_message.created_at.strftime("%m/%d/%Y, %H:%M:%S") + " in channel __#" + rawevent.cached_message.channel.name + "__ :\n " + rawevent.cached_message.content)
+
+@client.event
 async def on_message_edit(before,after):
     print("on_message_edit was called")
     if before.channel.name == 'bosco-audit-log':
@@ -144,7 +150,7 @@ async def on_message_edit(before,after):
             await audit_channel.send("Message edited by *" + after.author.name + "* in __#" + after.channel.name + "__ :\n **BEFORE** : " + before.content + "\n** AFTER** : " + after.content)
                     
 
-@bot.event
+@client.event
 async def on_voice_state_update(member,before,after):
     #Keep member in channel if was moved
     if member.id in channel_hold_list:
@@ -164,8 +170,8 @@ async def on_voice_state_update(member,before,after):
 
 ### Set a new number of team kills for members with the team kill role
 ### REQUIRES: manage_roles, manage_messages
-@bot.command()
-async def teamkills(ctx, member: discord.Member, command: str):
+@tree.command(guild=discord.Object(id=GUILD_ID), name="teamkills",description="Set teamkills role for member")
+async def teamkills(interaction: discord.Interaction, member: discord.Member, command: str):
   if m_tkrole.match(command):
     #evaluate command string
     #interpret command
@@ -186,71 +192,71 @@ async def teamkills(ctx, member: discord.Member, command: str):
         
         m = "Set new team kill count for " + member.name + " from " + str(l_op) + " to " + str(result)
         #TODO: Use server name instead of global name
-        await ctx.message.author.send(m)
+        await interaction.message.author.send(m)
         break
     else:
       #TODO: create new role
       m = "Team kill role is not assigned to this member, cannot edit"
-      await ctx.message.author.send(m)
+      await interaction.message.author.send(m)
       
     
   else:
-    m = "Invalid command. Format: .bosco teamkills @<User> [+-*/=]<number>"
+    m = "Invalid command. Format: /teamkills @<User> [+-*/=]<number>"
     print(m)
-    await ctx.message.author.send(m)
+    await interaction.message.author.send(m)
     
   #Remove bot command from the channel.
-  await ctx.message.delete()
+  await interaction.message.delete()
   
 
 #TODO: Override for pin by message id
 ### Pin message to channel command was invoked in
 ### REQUIRES: manage_roles
-@bot.command()
-async def pin(ctx, message: str):
-    message = await ctx.channel.send(message)
+@tree.command(guild=discord.Object(id=GUILD_ID), name="pin",description="pin message to a channel")
+async def pin(interaction: discord.Interaction, message: str):
+    message = await interaction.channel.send(message)
     await message.pin()
-    print("pinned '"+ message.content + "' to #" + ctx.channel.name)
-    await ctx.message.delete()
+    print("pinned '"+ message.content + "' to " + interaction.channel.name)
+    await interaction.message.delete()
     
 
-@bot.command()
-async def onemore(ctx):
-    channel = ctx.channel
+@tree.command(guild=discord.Object(id=GUILD_ID), name="onemore",description="Guilt people into playing one more round")
+async def onemore(interaction: discord.Interaction):
+    channel = interaction.channel
     await channel.send("ONE MORE FOR CHRISTMAS!!")
-    await ctx.message.delete()
+    await interaction.message.delete()
 
-@bot.command()
-async def joinvoice(ctx):
-    channel = ctx.author.voice.channel
+@tree.command(guild=discord.Object(id=GUILD_ID), name="joinvoice",description="BOSCO COMIN")
+async def joinvoice(interaction: discord.Interaction):
+    channel = interaction.author.voice.channel
     await channel.connect()
-    await ctx.message.delete()
+    await interaction.message.delete()
 
-@bot.command()
-async def leavevoice(ctx):
-    await ctx.voice_client.disconnect()
-    await ctx.message.delete()
+@tree.command(guild=discord.Object(id=GUILD_ID), name="leavevoice", description="Bye Bosco!")
+async def leavevoice(interaction: discord.Interaction):
+    await interaction.voice_client.disconnect()
+    await interaction.message.delete()
     
-@bot.command()
-async def keepvoice(ctx):
-    user = ctx.message.author
-    voice_channel = ctx.message.author.voice.channel
+@tree.command(guild=discord.Object(id=GUILD_ID), name="keepvoice", description="Keep yourself in a voice channel")
+async def keepvoice(interaction: discord.Interaction):
+    user = interaction.message.author
+    voice_channel = interaction.message.author.voice.channel
     if voice_channel is None:
-        await ctx.message.author.send("You are not in a voice channel!")
+        await interaction.message.author.send("You are not in a voice channel!")
     else:
         channel_hold_list[user.id] = voice_channel
-        await ctx.message.author.send("Will keep you in __" + str(voice_channel) + "__ until you leave voice")
-    await ctx.message.delete()
+        await interaction.message.author.send("Will keep you in __" + str(voice_channel) + "__ until you leave voice")
+    await interaction.message.delete()
         
-@bot.command()
-async def movevoice(ctx, move_from, move_to):
+@tree.command(guild=discord.Object(id=GUILD_ID), name="movevoice", description="Move everyone in a voice channel to another channel. Respects keepvoice setting")
+async def movevoice(interaction: discord.Interaction, move_from: discord.VoiceChannel, move_to: discord.VoiceChannel):
     print("movevoice called")
-    voice_channel_to = await lookup_vchannel_server(ctx.message.guild, move_to)
-    voice_channel_from = await lookup_vchannel_server(ctx.message.guild, move_from)
+    voice_channel_to = await lookup_vchannel_server(interaction.message.guild, move_to)
+    voice_channel_from = await lookup_vchannel_server(interaction.message.guild, move_from)
     if voice_channel_to and voice_channel_from: 
         print("Attempting to move...")
         for user in voice_channel_from.members:
-            await user.move_to(voice_channel_to,reason="Mass channel move by " + ctx.message.author.name)
+            await user.move_to(voice_channel_to,reason="Mass channel move by " + interaction.message.author.name)
     
     else:
         message = "The following channels could not be found: "
@@ -258,18 +264,18 @@ async def movevoice(ctx, move_from, move_to):
             message += "__" + move_to + "__ "
         if voice_channel_from is None:
             message += "__" + move_from + "__ "
-        await ctx.message.author.send(message)
-    await ctx.message.delete()
+        await interaction.message.author.send(message)
+    await interaction.message.delete()
 
 @teamkills.error
 #@npregister.error
-async def member_error(ctx, error):
+async def member_error(interaction: discord.Interaction, error):
     print(error)
     if isinstance(error, discord.ext.commands.BadArgument):
-        await ctx.message.author.send(error)
+        await interaction.message.author.send(error)
   
 ####################RUNNER####################
 f = open('./BoscoBot/token.txt','r')
 token = f.read()
 f.close()
-bot.run(token)
+client.run(token)
